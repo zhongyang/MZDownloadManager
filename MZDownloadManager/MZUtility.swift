@@ -8,16 +8,16 @@
 
 import UIKit
 
-let fileDest               : NSString = NSHomeDirectory().stringByAppendingPathComponent("Documents")
+let fileDest               : NSString = (NSHomeDirectory() as NSString).stringByAppendingPathComponent("Documents")
 let DownloadCompletedNotif : NSString = "DownloadCompletedNotif"
 let kAlertTitle            : NSString = "Message"
 
 class MZUtility: NSObject {
     
     class func showAlertViewWithTitle(titl : NSString, msg : NSString) {
-        var alertview : UIAlertView = UIAlertView()
-        alertview.title = titl
-        alertview.message = msg
+        let alertview : UIAlertView = UIAlertView()
+        alertview.title = titl as String
+        alertview.message = msg as String
         alertview.addButtonWithTitle("Ok")
         alertview.cancelButtonIndex = 0
         alertview.show()
@@ -34,7 +34,7 @@ class MZUtility: NSObject {
         
         var fileManger          : NSFileManager = NSFileManager.defaultManager()
         
-        do {
+        repeat {
             var fileDocDirectoryPath : NSString?
             
             if fileExtension.length > 0 {
@@ -43,7 +43,7 @@ class MZUtility: NSObject {
                 fileDocDirectoryPath = "\(filePath.stringByDeletingLastPathComponent)/\(suggestedFileName)"
             }
             
-            var isFileAlreadyExists : Bool = fileManger.fileExistsAtPath(fileDocDirectoryPath!)
+            var isFileAlreadyExists : Bool = fileManger.fileExistsAtPath(fileDocDirectoryPath! as String)
             
             if isFileAlreadyExists {
                 fileNumber++
@@ -61,7 +61,7 @@ class MZUtility: NSObject {
     }
     
     class func calculateFileSizeInUnit(contentLength : Int64) -> Float {
-        var dataLength : Float64 = Float64(contentLength)
+        let dataLength : Float64 = Float64(contentLength)
         if dataLength >= (1024.0*1024.0*1024.0) {
             return Float(dataLength/(1024.0*1024.0*1024.0))
         } else if dataLength >= 1024.0*1024.0 {
@@ -86,13 +86,20 @@ class MZUtility: NSObject {
     }
     
     class func addSkipBackupAttributeToItemAtURL(docDirectoryPath : NSString) -> Bool {
-        var url : NSURL = NSURL(fileURLWithPath: docDirectoryPath)!
-        var fileManager = NSFileManager.defaultManager()
+        let url : NSURL = NSURL(fileURLWithPath: docDirectoryPath as String)
+        let fileManager = NSFileManager.defaultManager()
         if fileManager.fileExistsAtPath(url.path!) {
             var error : NSError?
-            var success : Bool = url.setResourceValue(NSNumber(bool: true), forKey: NSURLIsExcludedFromBackupKey, error: &error)
+            var success : Bool
+            do {
+                try url.setResourceValue(NSNumber(bool: true), forKey: NSURLIsExcludedFromBackupKey)
+                success = true
+            } catch let error1 as NSError {
+                error = error1
+                success = false
+            }
             if let hasError = error {
-                println("Error excluding \(url.lastPathComponent) from backup \(error)")
+                print("Error excluding \(url.lastPathComponent) from backup \(error)")
             }
             return success
         } else {
@@ -101,16 +108,15 @@ class MZUtility: NSObject {
     }
     
     class func getFreeDiskspace() -> Int64? {
-        var error : NSError?
         let documentDirectoryPath = NSSearchPathForDirectoriesInDomains(.DocumentDirectory, .UserDomainMask, true)
-        if let systemAttributes = NSFileManager.defaultManager().attributesOfFileSystemForPath(documentDirectoryPath.last as String, error: &error) {
-            if let freeSize = systemAttributes[NSFileSystemFreeSize] as? NSNumber {
-                return freeSize.longLongValue
-            }
+        let systemAttributes: AnyObject?
+        do {
+            systemAttributes = try NSFileManager.defaultManager().attributesOfFileSystemForPath(documentDirectoryPath.last!)
+        } catch let error as NSError {
+            print("Error Obtaining System Memory Info: Domain = \(error.domain), Code = \(error.code)")
+            return nil;
         }
-        if let hasError = error {
-            println("Error Obtaining System Memory Info: Domain = \(error?.domain), Code = \(error?.code)")
-        }
-        return nil
+        let freeSize = systemAttributes?[NSFileSystemFreeSize] as? NSNumber
+        return freeSize?.longLongValue
     }
 }

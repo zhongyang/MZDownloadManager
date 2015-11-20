@@ -103,7 +103,7 @@ class MZDownloadManagerViewController: UIViewController, UIActionSheetDelegate, 
         
         dispatch_once(&sessionStruct.onceToken, { () -> Void in
             let sessionIdentifer     : NSString = "com.iosDevelopment.MZDownloadManager.BackgroundSession"
-            var sessionConfiguration : NSURLSessionConfiguration = NSURLSessionConfiguration.backgroundSessionConfiguration(sessionIdentifer)
+            let sessionConfiguration : NSURLSessionConfiguration = NSURLSessionConfiguration.backgroundSessionConfiguration(sessionIdentifer as String)
             sessionStruct.session = NSURLSession(configuration: sessionConfiguration, delegate: self, delegateQueue: nil)
         })
         return sessionStruct.session!
@@ -127,7 +127,7 @@ class MZDownloadManagerViewController: UIViewController, UIActionSheetDelegate, 
     
     func tasksForKeyPath(keyPath: NSString) -> NSArray {
         var tasks     : NSArray! = NSArray()
-        var semaphore : dispatch_semaphore_t = dispatch_semaphore_create(0)
+        let semaphore : dispatch_semaphore_t = dispatch_semaphore_create(0)
         sessionManager.getTasksWithCompletionHandler { (dataTasks, uploadTasks, downloadTasks) -> Void in
             if keyPath == "dataTasks" {
                 tasks = dataTasks
@@ -135,14 +135,14 @@ class MZDownloadManagerViewController: UIViewController, UIActionSheetDelegate, 
                 tasks = uploadTasks
                 
             } else if keyPath == "downloadTasks" {
-                if let pendingTasks = downloadTasks {
-                    tasks = downloadTasks
-                    println("pending tasks \(tasks)")
+                if let pendingTasks: NSArray = downloadTasks {
+                    tasks = pendingTasks
+                    print("pending tasks \(tasks)")
                 }
             } else if keyPath == "tasks" {
-                tasks = ([dataTasks, uploadTasks, downloadTasks] as AnyObject).valueForKeyPath("@unionOfArrays.self") as NSArray
+                tasks = ([dataTasks, uploadTasks, downloadTasks] as AnyObject).valueForKeyPath("@unionOfArrays.self") as! NSArray
                 
-                println("pending task\(tasks)")
+                print("pending task\(tasks)")
             }
             
             dispatch_semaphore_signal(semaphore)
@@ -154,28 +154,27 @@ class MZDownloadManagerViewController: UIViewController, UIActionSheetDelegate, 
     
     func addDownloadTask(fileName: NSString, fileURL: NSString) {
         
-        var url          : NSURL = NSURL(string: fileURL)!
-        var request      : NSURLRequest = NSURLRequest(URL: url)
-        var downloadTask : NSURLSessionDownloadTask = sessionManager.downloadTaskWithRequest(request)
+        let url          : NSURL = NSURL(string: fileURL as String)!
+        let request      : NSURLRequest = NSURLRequest(URL: url)
+        let downloadTask : NSURLSessionDownloadTask = sessionManager.downloadTaskWithRequest(request)
         
-        println("session manager:\(sessionManager) url:\(url) request:\(request)")
+        print("session manager:\(sessionManager) url:\(url) request:\(request)")
         
         downloadTask.resume()
         
-        var downloadInfo : NSMutableDictionary = NSMutableDictionary()
+        let downloadInfo : NSMutableDictionary = NSMutableDictionary()
         downloadInfo.setObject(fileURL, forKey: kMZDownloadKeyURL)
         downloadInfo.setObject(fileName, forKey: kMZDownloadKeyFileName)
         
-        var error        : NSError?
-        var jsonData     : NSData = NSJSONSerialization.dataWithJSONObject(downloadInfo, options: NSJSONWritingOptions.PrettyPrinted, error: &error)!
-        var jsonString   : NSString = NSString(data: jsonData, encoding: NSUTF8StringEncoding)!
-        downloadTask.taskDescription = jsonString
+        let jsonData     : NSData = try! NSJSONSerialization.dataWithJSONObject(downloadInfo, options: NSJSONWritingOptions.PrettyPrinted)
+        let jsonString   : NSString = NSString(data: jsonData, encoding: NSUTF8StringEncoding)!
+        downloadTask.taskDescription = jsonString as String
         
         downloadInfo.setObject(NSDate(), forKey: kMZDownloadKeyStartTime)
         downloadInfo.setObject(RequestStatusDownloading, forKey: kMZDownloadKeyStatus)
         downloadInfo.setObject(downloadTask, forKey: kMZDownloadKeyTask)
         
-        var indexPath    : NSIndexPath = NSIndexPath(forRow: self.downloadingArray.count, inSection: 0)
+        let indexPath    : NSIndexPath = NSIndexPath(forRow: self.downloadingArray.count, inSection: 0)
         
         self.downloadingArray.addObject(downloadInfo)
         bgDownloadTableView?.insertRowsAtIndexPaths([indexPath], withRowAnimation: UITableViewRowAnimation.Fade)
@@ -185,21 +184,25 @@ class MZDownloadManagerViewController: UIViewController, UIActionSheetDelegate, 
     
     func populateOtherDownloadTasks() {
         
-        var downloadTasks : NSArray = self.downloadTasks()
+        let downloadTasks : NSArray = self.downloadTasks()
         
         for downloadTask in downloadTasks {
-            var error : NSError?
-            var taskDescription : NSData = downloadTask.taskDescription.dataUsingEncoding(NSUTF8StringEncoding, allowLossyConversion: false)!
-            var downloadInfo    : NSMutableDictionary? = NSJSONSerialization.JSONObjectWithData(taskDescription, options: NSJSONReadingOptions.AllowFragments, error: &error)?.mutableCopy() as? NSMutableDictionary
+
+            let taskDescStr: String? = downloadTask.taskDescription
+            let taskDescription: NSData = (taskDescStr?.dataUsingEncoding(NSUTF8StringEncoding))!
             
-            if let serializationError = error {
-                println("Error while retreiving json value:\(error)")
+            var downloadInfo: NSMutableDictionary?
+            do {
+                downloadInfo = try NSJSONSerialization.JSONObjectWithData(taskDescription, options: .AllowFragments).mutableCopy() as? NSMutableDictionary
+            } catch let jsonError as NSError {
+                print("Error while retreiving json value:\(jsonError)")
+                downloadInfo = NSMutableDictionary()
             }
             
             downloadInfo?.setObject(downloadTask, forKey: kMZDownloadKeyTask)
             downloadInfo?.setObject(NSDate(), forKey: kMZDownloadKeyStartTime)
             
-            var taskState       : NSURLSessionTaskState = downloadTask.state
+            let taskState       : NSURLSessionTaskState = downloadTask.state
             
             if taskState == NSURLSessionTaskState.Running {
                 downloadInfo?.setObject(RequestStatusDownloading, forKey: kMZDownloadKeyStatus)
@@ -210,8 +213,8 @@ class MZDownloadManagerViewController: UIViewController, UIActionSheetDelegate, 
             } else {
                 downloadInfo?.setObject(RequestStatusFailed, forKey: kMZDownloadKeyStatus)
             }
-            
-            if let taskInfo = downloadInfo {
+
+            if let _ = downloadInfo {
                 
             } else {
                 downloadTask.cancel()
@@ -221,11 +224,11 @@ class MZDownloadManagerViewController: UIViewController, UIActionSheetDelegate, 
     }
     
     func presentNotificationForDownload(fileName : NSString) {
-        var application = UIApplication.sharedApplication()
-        var applicationState = application.applicationState
+        let application = UIApplication.sharedApplication()
+        let applicationState = application.applicationState
         
         if applicationState == UIApplicationState.Background {
-            var localNotification = UILocalNotification()
+            let localNotification = UILocalNotification()
             localNotification.alertBody = "Downloading complete of \(fileName)"
             localNotification.alertAction = "Background Transfer Download!"
             localNotification.soundName = UILocalNotificationDefaultSoundName
@@ -241,11 +244,16 @@ class MZDownloadManagerViewController: UIViewController, UIActionSheetDelegate, 
         if resumeData?.length < 0 {
             return false
         }
-
-        var error : NSError?
-        var resumeDictionary : AnyObject! = NSPropertyListSerialization.propertyListWithData(resumeData!, options: Int(NSPropertyListMutabilityOptions.Immutable.rawValue), format: nil, error: &error)
         
-        var localFilePath : NSString? = resumeDictionary?.objectForKey("NSURLSessionResumeInfoLocalPath") as? NSString
+        var resumeDictionary : AnyObject!
+        do {
+            resumeDictionary = try NSPropertyListSerialization.propertyListWithData(resumeData!, options: .Immutable, format: nil)
+        } catch let error as NSError {
+            print("resume data is nil: \(error)")
+            resumeDictionary = nil
+        }
+        
+        let localFilePath : NSString? = resumeDictionary?.objectForKey("NSURLSessionResumeInfoLocalPath") as? NSString
         if localFilePath == nil {
             return false
         }
@@ -254,16 +262,16 @@ class MZDownloadManagerViewController: UIViewController, UIActionSheetDelegate, 
             return false
         }
         
-        var fileManager : NSFileManager! = NSFileManager.defaultManager()
-        return fileManager.fileExistsAtPath(localFilePath!)
+        let fileManager : NSFileManager! = NSFileManager.defaultManager()
+        return fileManager.fileExistsAtPath(localFilePath! as String)
     }
 
     // MARK: - My IBActions -
     
     @IBAction func cancelButtonTappedOnActionSheet() {
-        var indexPath    : NSIndexPath = selectedIndexPath
-        var downloadInfo : NSMutableDictionary = self.downloadingArray.objectAtIndex(indexPath.row) as NSMutableDictionary
-        var downloadTask : NSURLSessionDownloadTask = downloadInfo.objectForKey(kMZDownloadKeyTask) as NSURLSessionDownloadTask
+        let indexPath    : NSIndexPath = selectedIndexPath
+        let downloadInfo : NSMutableDictionary = self.downloadingArray.objectAtIndex(indexPath.row) as! NSMutableDictionary
+        let downloadTask : NSURLSessionDownloadTask = downloadInfo.objectForKey(kMZDownloadKeyTask) as! NSURLSessionDownloadTask
 
         downloadTask.cancel()
         
@@ -274,16 +282,15 @@ class MZDownloadManagerViewController: UIViewController, UIActionSheetDelegate, 
     }
     
     @IBAction func pauseOrRetryButtonTappedOnActionSheet() {
-        var indexPath         : NSIndexPath = selectedIndexPath
-        var downloadInfo      : NSMutableDictionary = self.downloadingArray.objectAtIndex(indexPath.row) as NSMutableDictionary
-        var downloadTask      : NSURLSessionDownloadTask = downloadInfo.objectForKey(kMZDownloadKeyTask) as NSURLSessionDownloadTask
-        var cell              : MZDownloadingCell = self.bgDownloadTableView?.cellForRowAtIndexPath(indexPath) as MZDownloadingCell
-        var downloadingStatus : NSString = downloadInfo.objectForKey(kMZDownloadKeyStatus) as NSString
+        let indexPath         : NSIndexPath = selectedIndexPath
+        let downloadInfo      : NSMutableDictionary = self.downloadingArray.objectAtIndex(indexPath.row) as! NSMutableDictionary
+        let downloadTask      : NSURLSessionDownloadTask = downloadInfo.objectForKey(kMZDownloadKeyTask) as! NSURLSessionDownloadTask
+        let cell              : MZDownloadingCell = self.bgDownloadTableView?.cellForRowAtIndexPath(indexPath) as! MZDownloadingCell
+        let downloadingStatus : NSString = downloadInfo.objectForKey(kMZDownloadKeyStatus) as! NSString
         
         if downloadingStatus == RequestStatusDownloading {
             downloadTask.suspend()
             downloadInfo.setObject(RequestStatusPaused, forKey: kMZDownloadKeyStatus)
-            NSDate()
             downloadInfo.setObject(NSDate(), forKey: kMZDownloadKeyStartTime)
             
             self.downloadingArray.replaceObjectAtIndex(indexPath.row, withObject: downloadInfo)
@@ -312,35 +319,35 @@ class MZDownloadManagerViewController: UIViewController, UIActionSheetDelegate, 
             if downloadTask.isEqual(downloadDict.objectForKey(kMZDownloadKeyTask)) {
                 dispatch_async(dispatch_get_main_queue(), { () -> Void in
                     
-                    var receivedBytesCount      : Double = Double(downloadTask.countOfBytesReceived)
-                    var totalBytesCount         : Double = Double(downloadTask.countOfBytesExpectedToReceive)
-                    var progress                : Float = Float(receivedBytesCount / totalBytesCount)
+                    let receivedBytesCount      : Double = Double(downloadTask.countOfBytesReceived)
+                    let totalBytesCount         : Double = Double(downloadTask.countOfBytesExpectedToReceive)
+                    let progress                : Float = Float(receivedBytesCount / totalBytesCount)
                     
-                    var taskStartedDate         : NSDate = downloadDict.objectForKey(kMZDownloadKeyStartTime) as NSDate
-                    var timeInterval            : NSTimeInterval = taskStartedDate.timeIntervalSinceNow
-                    var downloadTime            : NSTimeInterval = NSTimeInterval(-1 * timeInterval)
+                    let taskStartedDate         : NSDate = downloadDict.objectForKey(kMZDownloadKeyStartTime) as! NSDate
+                    let timeInterval            : NSTimeInterval = taskStartedDate.timeIntervalSinceNow
+                    let downloadTime            : NSTimeInterval = NSTimeInterval(-1 * timeInterval)
                     
-                    var speed                   : Float = Float(totalBytesWritten) / Float(downloadTime)
+                    let speed                   : Float = Float(totalBytesWritten) / Float(downloadTime)
                     
-                    var indexOfObject           : NSInteger = self.downloadingArray.indexOfObject(downloadDict)
-                    var indexPath               : NSIndexPath = NSIndexPath(forRow: indexOfObject, inSection: 0)
+                    let indexOfObject           : NSInteger = self.downloadingArray.indexOfObject(downloadDict)
+                    let indexPath               : NSIndexPath = NSIndexPath(forRow: indexOfObject, inSection: 0)
                     
-                    var remainingContentLength  : Int64 = totalBytesExpectedToWrite - totalBytesWritten
-                    var remainingTime           : Int64 = remainingContentLength / Int64(speed)
-                    var hours                   : Int = Int(remainingTime) / 3600
-                    var minutes                 : Int = (Int(remainingTime) - hours * 3600) / 60
-                    var seconds                 : Int = Int(remainingTime) - hours * 3600 - minutes * 60
-                    var fileSizeUnit            : Float = MZUtility.calculateFileSizeInUnit(totalBytesExpectedToWrite)
-                    var unit                    : NSString = MZUtility.calculateUnit(totalBytesExpectedToWrite)
-                    var fileSizeInUnits         : NSString = NSString(format: "%.2f \(unit)", fileSizeUnit)
-                    var fileSizeDownloaded      : Float = MZUtility.calculateFileSizeInUnit(totalBytesWritten)
-                    var downloadedSizeUnit      : NSString = MZUtility.calculateUnit(totalBytesWritten)
-                    var downloadedFileSizeUnits : NSString = NSString(format: "%.2f \(downloadedSizeUnit)", fileSizeDownloaded)
-                    var speedSize               : Float = MZUtility.calculateFileSizeInUnit(Int64(speed))
-                    var speedUnit               : NSString = MZUtility.calculateUnit(Int64(speed))
-                    var speedInUnits            : NSString = NSString(format: "%.2f \(speedUnit)", speedSize)
-                    var remainingTimeStr        : NSMutableString = NSMutableString()
-                    var detailLabelText         : NSMutableString = NSMutableString()
+                    let remainingContentLength  : Int64 = totalBytesExpectedToWrite - totalBytesWritten
+                    let remainingTime           : Int64 = remainingContentLength / Int64(speed)
+                    let hours                   : Int = Int(remainingTime) / 3600
+                    let minutes                 : Int = (Int(remainingTime) - hours * 3600) / 60
+                    let seconds                 : Int = Int(remainingTime) - hours * 3600 - minutes * 60
+                    let fileSizeUnit            : Float = MZUtility.calculateFileSizeInUnit(totalBytesExpectedToWrite)
+                    let unit                    : NSString = MZUtility.calculateUnit(totalBytesExpectedToWrite)
+                    let fileSizeInUnits         : NSString = NSString(format: "%.2f \(unit)", fileSizeUnit)
+                    let fileSizeDownloaded      : Float = MZUtility.calculateFileSizeInUnit(totalBytesWritten)
+                    let downloadedSizeUnit      : NSString = MZUtility.calculateUnit(totalBytesWritten)
+                    let downloadedFileSizeUnits : NSString = NSString(format: "%.2f \(downloadedSizeUnit)", fileSizeDownloaded)
+                    let speedSize               : Float = MZUtility.calculateFileSizeInUnit(Int64(speed))
+                    let speedUnit               : NSString = MZUtility.calculateUnit(Int64(speed))
+                    let speedInUnits            : NSString = NSString(format: "%.2f \(speedUnit)", speedSize)
+                    let remainingTimeStr        : NSMutableString = NSMutableString()
+                    let detailLabelText         : NSMutableString = NSMutableString()
                     
                     if self.isViewLoaded != nil {
                         if hours > 0 {
@@ -361,9 +368,9 @@ class MZDownloadManagerViewController: UIViewController, UIActionSheetDelegate, 
                             detailLabelText.appendString("Time Left: \(remainingTimeStr)")
                         }
                         
-                        var cell : MZDownloadingCell = self.bgDownloadTableView?.cellForRowAtIndexPath(indexPath) as MZDownloadingCell
+                        let cell : MZDownloadingCell = self.bgDownloadTableView?.cellForRowAtIndexPath(indexPath) as! MZDownloadingCell
                         cell.progressDownload?.progress = progress
-                        cell.lblDetails?.text = detailLabelText
+                        cell.lblDetails?.text = detailLabelText as String
                         
                         downloadDict.setObject("\(progress)", forKey: kMZDownloadKeyProgress)
                         downloadDict.setObject(detailLabelText, forKey: kMZDownloadKeyDetails)
@@ -377,19 +384,20 @@ class MZDownloadManagerViewController: UIViewController, UIActionSheetDelegate, 
     func URLSession(session: NSURLSession, downloadTask: NSURLSessionDownloadTask, didFinishDownloadingToURL location: NSURL) {
         for downloadDict in self.downloadingArray {
             if downloadTask.isEqual(downloadDict.objectForKey(kMZDownloadKeyTask)) {
-                var fileName        : NSString = downloadDict.objectForKey(kMZDownloadKeyFileName) as NSString
-                var destinationPath : NSString = fileDest.stringByAppendingPathComponent(fileName)
-                var fileURL         : NSURL = NSURL(fileURLWithPath: destinationPath)!
-                println("directory path = \(destinationPath)")
+                let fileName        : NSString = downloadDict.objectForKey(kMZDownloadKeyFileName) as! NSString
+                let destinationPath : NSString = fileDest.stringByAppendingPathComponent(fileName as String)
+                let fileURL         : NSURL = NSURL(fileURLWithPath: destinationPath as String)
+                print("directory path = \(destinationPath)")
                 
-                var error       : NSError?
-                var fileManager : NSFileManager = NSFileManager.defaultManager()
-                var success     : Bool = fileManager.moveItemAtURL(location, toURL: fileURL, error: &error)
-                if let hasError = error {
-                    println("Error while moving downloaded file to destination path:\(error)")
-                    var errorMessage : NSString = error!.localizedDescription as NSString
+                let fileManager : NSFileManager = NSFileManager.defaultManager()
+                do {
+                    try fileManager.moveItemAtURL(location, toURL: fileURL)
+                } catch let error as NSError {
+                    print("Error while moving downloaded file to destination path:\(error)")
+                    let errorMessage : NSString = error.localizedDescription as NSString
                     MZUtility.showAlertViewWithTitle(kAlertTitle, msg: errorMessage)
                 }
+                
                 break
             }
         }
@@ -397,46 +405,48 @@ class MZDownloadManagerViewController: UIViewController, UIActionSheetDelegate, 
     
     func URLSession(session: NSURLSession, task: NSURLSessionTask, didCompleteWithError error: NSError?) {
         if let error = error {
-            println("Download complete with error: \(error)")
+            print("Download complete with error: \(error)")
             let errorUserInfo : NSDictionary? = error.userInfo
-            if let hasReasonKey: AnyObject = errorUserInfo?.objectForKey("NSURLErrorBackgroundTaskCancelledReasonKey") {
-                let errorReasonNum : Int = Int(errorUserInfo?.objectForKey("NSURLErrorBackgroundTaskCancelledReasonKey")? as NSNumber)
+            if let _: AnyObject = errorUserInfo?.objectForKey("NSURLErrorBackgroundTaskCancelledReasonKey") {
+                let errorReasonNum : Int = Int(errorUserInfo?.objectForKey("NSURLErrorBackgroundTaskCancelledReasonKey") as! NSNumber)
                 if errorReasonNum == NSURLErrorCancelledReasonUserForceQuitApplication || errorReasonNum == NSURLErrorCancelledReasonBackgroundUpdatesDisabled {
                     
-                    var taskInfo        : NSString = task.taskDescription as NSString
-                    var jsonError       : NSError?
-                    var taskDescription : NSData? = taskInfo.dataUsingEncoding(NSUTF8StringEncoding)
-                    var taskInfoDict    : NSMutableDictionary? = NSJSONSerialization.JSONObjectWithData(taskDescription!, options: NSJSONReadingOptions.AllowFragments, error: &jsonError)?.mutableCopy() as? NSMutableDictionary
                     
-                    if let jsonError = jsonError {
-                        println("Error while retreiving json value: didCompleteWithError \(jsonError.localizedDescription)")
+                    let taskDescStr: String? = task.taskDescription
+                    let taskDescriptionData: NSData = (taskDescStr?.dataUsingEncoding(NSUTF8StringEncoding))!
+                    var taskInfoDict : NSMutableDictionary?
+                    
+                    do {
+                       taskInfoDict = try NSJSONSerialization.JSONObjectWithData(taskDescriptionData, options: .AllowFragments).mutableCopy() as? NSMutableDictionary
+                    } catch let jsonError as NSError {
+                        print("Error while retreiving json value: didCompleteWithError \(jsonError.localizedDescription)")
                     }
                     
-                    var fileName        : NSString = taskInfoDict?.objectForKey(kMZDownloadKeyFileName) as NSString
-                    var fileURL         : NSString = taskInfoDict?.objectForKey(kMZDownloadKeyURL) as NSString
-                    var downloadInfo    : NSMutableDictionary = NSMutableDictionary()
+                    let fileName        : NSString = taskInfoDict?.objectForKey(kMZDownloadKeyFileName) as! NSString
+                    let fileURL         : NSString = taskInfoDict?.objectForKey(kMZDownloadKeyURL) as! NSString
+                    let downloadInfo    : NSMutableDictionary = NSMutableDictionary()
                     downloadInfo.setObject(fileName, forKey: kMZDownloadKeyFileName)
                     downloadInfo.setObject(fileURL, forKey: kMZDownloadKeyURL)
                     downloadInfo.setObject(RequestStatusFailed, forKey: kMZDownloadKeyStatus)
                     
                     var newTask = task
-                    var resumeData : NSData? = errorUserInfo?.objectForKey(NSURLSessionDownloadTaskResumeData) as? NSData
+                    let resumeData : NSData? = errorUserInfo?.objectForKey(NSURLSessionDownloadTaskResumeData) as? NSData
 
                     dispatch_async(dispatch_get_main_queue(), { () -> Void in
                         
                         if let resumeData = resumeData {
-                            var hasValidResumeData : Bool = self.isValidResumeData(resumeData)
+                            let hasValidResumeData : Bool = self.isValidResumeData(resumeData)
                             if hasValidResumeData == true {
                                 newTask = self.sessionManager.downloadTaskWithResumeData(resumeData)
                             } else {
-                                newTask = self.sessionManager.downloadTaskWithURL(NSURL(string: fileURL)!)
+                                newTask = self.sessionManager.downloadTaskWithURL(NSURL(string: fileURL as String)!)
                             }
                         } else {
-                            newTask = self.sessionManager.downloadTaskWithURL(NSURL(string: fileURL)!)
+                            newTask = self.sessionManager.downloadTaskWithURL(NSURL(string: fileURL as String)!)
                         }
                         
-                        newTask.taskDescription = taskInfo
-                        downloadInfo.setObject(newTask as NSURLSessionDownloadTask, forKey: kMZDownloadKeyTask)
+                        newTask.taskDescription = task.taskDescription
+                        downloadInfo.setObject(newTask as! NSURLSessionDownloadTask, forKey: kMZDownloadKeyTask)
                         
                         self.downloadingArray.addObject(downloadInfo)
                         
@@ -449,31 +459,31 @@ class MZDownloadManagerViewController: UIViewController, UIActionSheetDelegate, 
         }
         for downloadInfo in self.downloadingArray {
             if task.isEqual(downloadInfo.objectForKey(kMZDownloadKeyTask)) {
-                var indexOfObject : Int = self.downloadingArray.indexOfObject(downloadInfo)
+                let indexOfObject : Int = self.downloadingArray.indexOfObject(downloadInfo)
                 if let error = error {
                     let errorUserInfo : NSDictionary? = error.userInfo
                     if error.code != NSURLErrorCancelled {
-                        var taskInfo    : NSString = task.taskDescription as NSString
-                        var fileURL     : NSString = downloadInfo.objectForKey(kMZDownloadKeyURL) as NSString
-                        var resumeData  : NSData? = errorUserInfo?.objectForKey(NSURLSessionDownloadTaskResumeData) as? NSData
+                        let taskInfo    : String? = task.taskDescription
+                        let fileURL     : NSString = downloadInfo.objectForKey(kMZDownloadKeyURL) as! NSString
+                        let resumeData  : NSData? = errorUserInfo?.objectForKey(NSURLSessionDownloadTaskResumeData) as? NSData
                         var newTask = task
 
                         dispatch_async(dispatch_get_main_queue(), { () -> Void in
                             
                             if let resumeData = resumeData {
-                                var hasValidResumeData : Bool = self.isValidResumeData(resumeData)
+                                let hasValidResumeData : Bool = self.isValidResumeData(resumeData)
                                 if hasValidResumeData == true {
                                     newTask = self.sessionManager.downloadTaskWithResumeData(resumeData)
                                 } else {
-                                    newTask = self.sessionManager.downloadTaskWithURL(NSURL(string: fileURL)!)
+                                    newTask = self.sessionManager.downloadTaskWithURL(NSURL(string: fileURL as String)!)
                                 }
                             } else {
-                                newTask = self.sessionManager.downloadTaskWithURL(NSURL(string: fileURL)!)
+                                newTask = self.sessionManager.downloadTaskWithURL(NSURL(string: fileURL as String)!)
                             }
                             
                             newTask.taskDescription = taskInfo
                             downloadInfo.setObject(RequestStatusFailed, forKey: kMZDownloadKeyStatus)
-                            downloadInfo.setObject(newTask as NSURLSessionDownloadTask, forKey: kMZDownloadKeyTask)
+                            downloadInfo.setObject(newTask as! NSURLSessionDownloadTask, forKey: kMZDownloadKeyTask)
                             
                             self.downloadingArray.replaceObjectAtIndex(indexOfObject, withObject: downloadInfo)
                             
@@ -485,12 +495,12 @@ class MZDownloadManagerViewController: UIViewController, UIActionSheetDelegate, 
                 } else {
                     dispatch_async(dispatch_get_main_queue(), { () -> Void in
                         self.dismissAllActionSeets()
-                        var fileName : NSString = downloadInfo.objectForKey(kMZDownloadKeyFileName) as NSString
+                        let fileName : NSString = downloadInfo.objectForKey(kMZDownloadKeyFileName) as! NSString
                         
                         self.presentNotificationForDownload(fileName)
                         
                         self.downloadingArray.removeObjectAtIndex(indexOfObject)
-                        var indexPath : NSIndexPath = NSIndexPath(forRow: indexOfObject, inSection: 0)
+                        let indexPath : NSIndexPath = NSIndexPath(forRow: indexOfObject, inSection: 0)
                         self.bgDownloadTableView?.deleteRowsAtIndexPaths([indexPath], withRowAnimation: UITableViewRowAnimation.Left)
                         
                         self.delegate?.downloadRequestFinished?(fileName)
@@ -502,15 +512,15 @@ class MZDownloadManagerViewController: UIViewController, UIActionSheetDelegate, 
     }
     
     func URLSessionDidFinishEventsForBackgroundURLSession(session: NSURLSession) {
-        var appDelegate : AppDelegate = UIApplication.sharedApplication().delegate as AppDelegate
+        let appDelegate : AppDelegate = UIApplication.sharedApplication().delegate as! AppDelegate
         
-        if let isBackgroundCompletionHandler = appDelegate.backgroundSessionCompletionHandler {
-            var completionHandler = appDelegate.backgroundSessionCompletionHandler
+        if let _ = appDelegate.backgroundSessionCompletionHandler {
+            let completionHandler = appDelegate.backgroundSessionCompletionHandler
             appDelegate.backgroundSessionCompletionHandler = nil
             completionHandler!()
         }
         
-        println("All tasks are finished")
+        print("All tasks are finished")
     }
     /*
     // MARK: - Navigation -
@@ -548,8 +558,8 @@ class MZDownloadManagerViewController: UIViewController, UIActionSheetDelegate, 
     
     func tableView(tableView: UITableView, cellForRowAtIndexPath indexPath: NSIndexPath) -> UITableViewCell {
         
-        var cellIdentifier : NSString = "MZDownloadingCell"
-        var cell : MZDownloadingCell = tableView.dequeueReusableCellWithIdentifier(cellIdentifier, forIndexPath: indexPath) as MZDownloadingCell
+        let cellIdentifier : NSString = "MZDownloadingCell"
+        let cell : MZDownloadingCell = tableView.dequeueReusableCellWithIdentifier(cellIdentifier as String, forIndexPath: indexPath) as! MZDownloadingCell
         
         self.updateCellForRowAtIndexPath(cell, indexPath: indexPath)
         
@@ -558,30 +568,30 @@ class MZDownloadManagerViewController: UIViewController, UIActionSheetDelegate, 
     }
     
     func updateCellForRowAtIndexPath(cell : MZDownloadingCell, indexPath : NSIndexPath) {
-        var downloadInfoDict : NSMutableDictionary = self.downloadingArray.objectAtIndex(indexPath.row) as NSMutableDictionary
-        var fileName         : NSString = downloadInfoDict.objectForKey(kMZDownloadKeyFileName) as NSString
+        let downloadInfoDict : NSMutableDictionary = self.downloadingArray.objectAtIndex(indexPath.row) as! NSMutableDictionary
+        let fileName         : NSString = downloadInfoDict.objectForKey(kMZDownloadKeyFileName) as! NSString
         
         cell.lblTitle?.text = "File Title: \(fileName)"
         
-        if let areDetailsAvailable = downloadInfoDict.objectForKey(kMZDownloadKeyDetails) as? NSString {
-            var progress         : NSString = downloadInfoDict.objectForKey(kMZDownloadKeyProgress)? as NSString
-            cell.lblDetails?.text = downloadInfoDict.objectForKey(kMZDownloadKeyDetails) as NSString
+        if let _ = downloadInfoDict.objectForKey(kMZDownloadKeyDetails) as? NSString {
+            let progress         : NSString = downloadInfoDict.objectForKey(kMZDownloadKeyProgress) as! NSString
+            cell.lblDetails?.text = downloadInfoDict.objectForKey(kMZDownloadKeyDetails) as! NSString as String
             cell.progressDownload?.progress = progress.floatValue
         }
     }
     
     func tableView(tableView: UITableView, didSelectRowAtIndexPath indexPath: NSIndexPath) {
         selectedIndexPath = indexPath
-        var downloadInfoDict : NSMutableDictionary = self.downloadingArray.objectAtIndex(indexPath.row) as NSMutableDictionary
-        var downloadStatus : NSString = downloadInfoDict.objectForKey(kMZDownloadKeyStatus) as NSString
+        let downloadInfoDict : NSMutableDictionary = self.downloadingArray.objectAtIndex(indexPath.row) as! NSMutableDictionary
+        let downloadStatus : NSString = downloadInfoDict.objectForKey(kMZDownloadKeyStatus) as! NSString
         
         if downloadStatus == RequestStatusPaused {
-            actionSheetStart.showFromTabBar(self.tabBarController?.tabBar)
+            actionSheetStart.showFromTabBar((self.tabBarController?.tabBar)!)
         } else if downloadStatus == RequestStatusDownloading {
-            actionSheetPause.showFromTabBar(self.tabBarController?.tabBar)
+            actionSheetPause.showFromTabBar((self.tabBarController?.tabBar)!)
         } else {
-            println("retry actionsheet\(actionSheetRetry)")
-            actionSheetRetry.showFromTabBar(self.tabBarController?.tabBar)
+            print("retry actionsheet\(actionSheetRetry)")
+            actionSheetRetry.showFromTabBar((self.tabBarController?.tabBar)!)
         }
         tableView.deselectRowAtIndexPath(indexPath, animated: true)
     }

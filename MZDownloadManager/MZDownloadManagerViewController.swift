@@ -102,8 +102,16 @@ class MZDownloadManagerViewController: UIViewController, UIActionSheetDelegate, 
         }
         
         dispatch_once(&sessionStruct.onceToken, { () -> Void in
-            let sessionIdentifer     : NSString = "com.iosDevelopment.MZDownloadManager.BackgroundSession"
-            let sessionConfiguration : NSURLSessionConfiguration = NSURLSessionConfiguration.backgroundSessionConfiguration(sessionIdentifer as String)
+            let sessionIdentifer     : String = "com.iosDevelopment.MZDownloadManager.BackgroundSession"
+            let sessionConfiguration : NSURLSessionConfiguration
+            
+            if #available(iOS 8.0, *) {
+                sessionConfiguration = NSURLSessionConfiguration.backgroundSessionConfigurationWithIdentifier(sessionIdentifer)
+            } else {
+                // Fallback on earlier versions
+                sessionConfiguration = NSURLSessionConfiguration.backgroundSessionConfiguration(sessionIdentifer)
+            }
+
             sessionStruct.session = NSURLSession(configuration: sessionConfiguration, delegate: self, delegateQueue: nil)
         })
         return sessionStruct.session!

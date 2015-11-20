@@ -33,7 +33,7 @@ class MZDownloadedViewController: UIViewController {
         downloadedFilesArray = NSMutableArray()
         downloadedFilesArray.addObjectsFromArray(contentOfDir as [AnyObject])
         
-//        downloadedFilesArray?.removeObject(".DS_Store")
+        downloadedFilesArray?.removeObject(".DS_Store")
         
         NSNotificationCenter.defaultCenter().addObserver(self, selector: "downloadFinishedNotification:", name: DownloadCompletedNotif as String, object: nil)
     }
@@ -83,21 +83,12 @@ class MZDownloadedViewController: UIViewController {
         let fileName : NSString = downloadedFilesArray.objectAtIndex(indexPath.row) as! NSString
         let fileURL  : NSURL = NSURL(fileURLWithPath: fileDest.stringByAppendingPathComponent(fileName as String))
         
-        var error : NSError?
-        
-        var isDeletedSucces : Bool
         do {
             try fileManger.removeItemAtURL(fileURL)
-            isDeletedSucces = true
-        } catch let error1 as NSError {
-            error = error1
-            isDeletedSucces = false
-        }
-        if isDeletedSucces {
             downloadedFilesArray.removeObject(indexPath.row)
             tblViewDownloaded?.deleteRowsAtIndexPaths([indexPath], withRowAnimation: UITableViewRowAnimation.Fade)
-        } else {
-            MZUtility.showAlertViewWithTitle(kAlertTitle, msg: "File deletion error : \(error?.localizedDescription)")
+        } catch let error as NSError {
+            MZUtility.showAlertViewWithTitle(kAlertTitle, msg: "File deletion error : \(error.localizedDescription)")
         }
     }
     

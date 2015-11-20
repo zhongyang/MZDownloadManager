@@ -24,15 +24,15 @@ class MZUtility: NSObject {
     }
     
     class func getUniqueFileNameWithPath(filePath : NSString) -> NSString {
-        var fullFileName        : NSString = filePath.lastPathComponent
-        var fileName            : NSString = fullFileName.stringByDeletingPathExtension
-        var fileExtension       : NSString = fullFileName.pathExtension
+        let fullFileName        : NSString = filePath.lastPathComponent
+        let fileName            : NSString = fullFileName.stringByDeletingPathExtension
+        let fileExtension       : NSString = fullFileName.pathExtension
         var suggestedFileName   : NSString = fileName
         
         var isUnique            : Bool = false
         var fileNumber          : Int = 0
         
-        var fileManger          : NSFileManager = NSFileManager.defaultManager()
+        let fileManger          : NSFileManager = NSFileManager.defaultManager()
         
         repeat {
             var fileDocDirectoryPath : NSString?
@@ -43,7 +43,7 @@ class MZUtility: NSObject {
                 fileDocDirectoryPath = "\(filePath.stringByDeletingLastPathComponent)/\(suggestedFileName)"
             }
             
-            var isFileAlreadyExists : Bool = fileManger.fileExistsAtPath(fileDocDirectoryPath! as String)
+            let isFileAlreadyExists : Bool = fileManger.fileExistsAtPath(fileDocDirectoryPath! as String)
             
             if isFileAlreadyExists {
                 fileNumber++
@@ -89,19 +89,15 @@ class MZUtility: NSObject {
         let url : NSURL = NSURL(fileURLWithPath: docDirectoryPath as String)
         let fileManager = NSFileManager.defaultManager()
         if fileManager.fileExistsAtPath(url.path!) {
-            var error : NSError?
-            var success : Bool
+            
             do {
                 try url.setResourceValue(NSNumber(bool: true), forKey: NSURLIsExcludedFromBackupKey)
-                success = true
-            } catch let error1 as NSError {
-                error = error1
-                success = false
-            }
-            if let hasError = error {
+                return true
+            } catch let error as NSError {
                 print("Error excluding \(url.lastPathComponent) from backup \(error)")
+                return false
             }
-            return success
+
         } else {
             return false
         }
@@ -112,11 +108,11 @@ class MZUtility: NSObject {
         let systemAttributes: AnyObject?
         do {
             systemAttributes = try NSFileManager.defaultManager().attributesOfFileSystemForPath(documentDirectoryPath.last!)
+            let freeSize = systemAttributes?[NSFileSystemFreeSize] as? NSNumber
+            return freeSize?.longLongValue
         } catch let error as NSError {
             print("Error Obtaining System Memory Info: Domain = \(error.domain), Code = \(error.code)")
             return nil;
         }
-        let freeSize = systemAttributes?[NSFileSystemFreeSize] as? NSNumber
-        return freeSize?.longLongValue
     }
 }

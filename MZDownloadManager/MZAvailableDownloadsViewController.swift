@@ -34,8 +34,8 @@ class MZAvailableDownloadsViewController: UIViewController, MZDownloadDelegate, 
     }
     
     func setUpDownloadingViewController() {
-        var tabBarTabs : NSArray? = self.tabBarController?.viewControllers
-        var mzDownloadingNav : UINavigationController = tabBarTabs?.objectAtIndex(1) as! UINavigationController
+        let tabBarTabs : NSArray? = self.tabBarController?.viewControllers
+        let mzDownloadingNav : UINavigationController = tabBarTabs?.objectAtIndex(1) as! UINavigationController
         
         mzDownloadingViewObj = mzDownloadingNav.viewControllers[0] as? MZDownloadManagerViewController
         mzDownloadingViewObj?.delegate = self
@@ -65,7 +65,7 @@ class MZAvailableDownloadsViewController: UIViewController, MZDownloadDelegate, 
     }
     
     func downloadRequestFinished(fileName: NSString) {
-        var docDirectoryPath : NSString = fileDest.stringByAppendingPathComponent(fileName as String)
+        let docDirectoryPath : NSString = fileDest.stringByAppendingPathComponent(fileName as String)
         NSNotificationCenter.defaultCenter().postNotificationName(DownloadCompletedNotif as String, object: docDirectoryPath)
     }
     
@@ -77,11 +77,11 @@ class MZAvailableDownloadsViewController: UIViewController, MZDownloadDelegate, 
     
     func tableView(tableView: UITableView, cellForRowAtIndexPath indexPath: NSIndexPath) -> UITableViewCell {
         
-        var cellIdentifier : NSString = "AvailableDownloadsCell"
-        var cell : UITableViewCell = tableView.dequeueReusableCellWithIdentifier(cellIdentifier as String, forIndexPath: indexPath) as UITableViewCell
+        let cellIdentifier : NSString = "AvailableDownloadsCell"
+        let cell : UITableViewCell = tableView.dequeueReusableCellWithIdentifier(cellIdentifier as String, forIndexPath: indexPath) as UITableViewCell
         
-        var fileURL  : NSString = availableDownloadsArray.objectAtIndex(indexPath.row) as! NSString
-        var fileName : NSString = fileURL.lastPathComponent
+        let fileURL  : NSString = availableDownloadsArray.objectAtIndex(indexPath.row) as! NSString
+        let fileName : NSString = fileURL.lastPathComponent
         
         cell.textLabel?.text = fileName as String
         

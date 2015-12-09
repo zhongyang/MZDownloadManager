@@ -376,9 +376,9 @@ class MZDownloadManagerViewController: UIViewController, UIActionSheetDelegate, 
                             detailLabelText.appendString("Time Left: \(remainingTimeStr)")
                         }
                         
-                        let cell : MZDownloadingCell = self.bgDownloadTableView?.cellForRowAtIndexPath(indexPath) as! MZDownloadingCell
-                        cell.progressDownload?.progress = progress
-                        cell.lblDetails?.text = detailLabelText as String
+                        let cell: MZDownloadingCell? = self.bgDownloadTableView?.cellForRowAtIndexPath(indexPath) as? MZDownloadingCell
+                        cell?.progressDownload?.progress = progress
+                        cell?.lblDetails?.text = detailLabelText as String
                         
                         downloadDict.setObject("\(progress)", forKey: kMZDownloadKeyProgress)
                         downloadDict.setObject(detailLabelText, forKey: kMZDownloadKeyDetails)
@@ -403,7 +403,10 @@ class MZDownloadManagerViewController: UIViewController, UIActionSheetDelegate, 
                 } catch let error as NSError {
                     print("Error while moving downloaded file to destination path:\(error)")
                     let errorMessage : NSString = error.localizedDescription as NSString
-                    MZUtility.showAlertViewWithTitle(kAlertTitle, msg: errorMessage)
+                    
+                    dispatch_async(dispatch_get_main_queue(), { () -> Void in
+                        MZUtility.showAlertViewWithTitle(kAlertTitle, msg: errorMessage)
+                    })
                 }
                 
                 break

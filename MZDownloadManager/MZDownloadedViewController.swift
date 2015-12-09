@@ -85,7 +85,7 @@ class MZDownloadedViewController: UIViewController {
         
         do {
             try fileManger.removeItemAtURL(fileURL)
-            downloadedFilesArray.removeObject(indexPath.row)
+            downloadedFilesArray.removeObjectAtIndex(indexPath.row)
             tblViewDownloaded?.deleteRowsAtIndexPaths([indexPath], withRowAnimation: UITableViewRowAnimation.Fade)
         } catch let error as NSError {
             MZUtility.showAlertViewWithTitle(kAlertTitle, msg: "File deletion error : \(error.localizedDescription)")
